@@ -1,6 +1,6 @@
 # 🔀 Prompt Router — LLM-Powered Intent Classification
 
-A production-ready AI assistant that automatically classifies user intent and routes each message to a specialised expert persona. Built with **Node.js**, **Express**, and **OpenAI GPT-4o**, deployable on **Vercel** or **Docker**.
+A production-ready AI assistant that automatically classifies user intent and routes each message to a specialised expert persona. Built with **Node.js**, **Express**, and **Groq Llama models**, deployed on **Render**.
 
 ---
 
@@ -8,14 +8,14 @@ A production-ready AI assistant that automatically classifies user intent and ro
 
 | Feature | Detail |
 |---|---|
-| **Two-step routing** | Classify (gpt-4o-mini) → Respond (gpt-4o) |
+| **Two-step routing** | Classify (Llama 3.1 8B Instant) → Respond (Llama 3.3 70B Versatile) |
 | **4 expert personas** | Code, Data, Writing, Career |
-| **Confidence threshold** | Low-confidence classifications escalate to *unclear* |
-| **Manual override** | Prefix with `@code`, `@data`, `@writing`, `@career` |
+| **Keyword fallback** | If the LLM is uncertain, keyword matching ensures the right persona is picked |
+| **Confidence threshold** | Low-confidence results trigger keyword fallback before escalating to *unclear* |
+| **Manual override** | Prefix with `@code`, `@data`, `@writing`, `@career` to bypass the classifier |
 | **Route logging** | Every request logged to `route_log.jsonl` |
 | **Multi-turn memory** | Conversation history passed to each LLM call |
-| **Live UI** | Dark-mode chat interface with intent badge + confidence bar |
-| **Vercel-ready** | Serverless API functions in `/api/` |
+| **Clean UI** | Minimal light-theme chat interface with intent pill + confidence % |
 | **Docker-ready** | `Dockerfile` + `docker-compose.yml` included |
 
 ---
@@ -26,34 +26,38 @@ A production-ready AI assistant that automatically classifies user intent and ro
 User Message
       │
       ▼
-┌─────────────────┐
-│ classify_intent  │  ← gpt-4o-mini, temp=0, max_tokens=60
-│  (src/classifier)│    returns {intent, confidence}
-└────────┬────────┘
-         │
-         ├─ confidence < 0.7 → intent = "unclear"
-         │
-         ▼
-┌─────────────────┐
-│ route_and_respond│  ← gpt-4o, temp=0.4, max_tokens=1024
-│  (src/router)    │    uses expert system prompt from prompts.js
-└────────┬────────┘
-         │
-         ├──→ route_log.jsonl  (src/logger)
-         │
-         ▼
-    Final Response
+┌──────────────────────────────────────┐
+│ classifyIntent  (src/classifier.js)  │  ← Groq Llama 3.1 8B Instant
+│                                      │    temp=0, max_tokens=60
+│  1. Check for @override prefix       │    returns {intent, confidence}
+│  2. Call Groq classifier             │
+│  3. Parse JSON response              │
+│  4. Keyword fallback if uncertain    │
+└────────────────┬─────────────────────┘
+                 │
+                 ▼
+┌──────────────────────────────────────┐
+│ routeAndRespond  (src/router.js)     │  ← Groq Llama 3.3 70B Versatile
+│                                      │    temp=0.4, max_tokens=1024
+│  Selects expert system prompt and    │
+│  generates the final response        │
+└────────────────┬─────────────────────┘
+                 │
+                 ├──→ route_log.jsonl  (src/logger.js)
+                 │
+                 ▼
+            Final Response
 ```
 
 ### Intent Labels
 
 | Label | Persona | Trigger examples |
 |---|---|---|
-| `code` | Code Expert | Python, SQL, bugs, functions |
-| `data` | Data Analyst | averages, datasets, pivot tables |
-| `writing` | Writing Coach | paragraphs, sentences, tone |
-| `career` | Career Advisor | interviews, resumes, career direction |
-| `unclear` | Clarifier | ambiguous, vague, off-topic |
+| `code` | Code Expert | Python, SQL, debugging, scripts, algorithms |
+| `data` | Data Analyst | datasets, averages, charts, pivot tables, statistics |
+| `writing` | Writing Coach | paragraphs, grammar, tone, clarity, emails |
+| `career` | Career Advisor | interviews, resumes, cover letters, job decisions |
+| `unclear` | Clarifier | genuine gibberish or single-word greetings |
 
 ---
 
@@ -69,12 +73,11 @@ npm install
 
 # 2. Set up environment
 cp .env.example .env
-#   Edit .env and add your OPENAI_API_KEY
+# Edit .env and add your GROQ_API_KEY
 
 # 3. Run
-npm run dev       # with auto-reload (nodemon)
-# or
-npm start         # production mode
+npm run dev    # with auto-reload (nodemon)
+npm start      # production mode
 ```
 
 Open **http://localhost:3000** in your browser.
@@ -84,52 +87,44 @@ Open **http://localhost:3000** in your browser.
 ### Docker
 
 ```bash
-# Build and run
-cp .env.example .env     # fill in OPENAI_API_KEY
+cp .env.example .env    # fill in GROQ_API_KEY
 docker-compose up --build
 
 # Stop
 docker-compose down
 ```
 
-The `route_log.jsonl` is mounted as a volume so logs persist across restarts.
+`route_log.jsonl` is mounted as a volume so logs persist across restarts.
 
 ---
 
-### Vercel Deployment
+### Render Deployment (live)
 
-```bash
-# Install Vercel CLI
-npm i -g vercel
+1. Push your code to a GitHub repository
+2. Go to [render.com](https://render.com) → **New Web Service** → connect your repo
+3. Set the following:
+   - **Build command:** `npm install`
+   - **Start command:** `npm start`
+4. Add your environment variable:
+   - `GROQ_API_KEY` = `gsk_...`
+5. Click **Deploy**
 
-# Deploy
-vercel
-
-# Add your secret
-vercel env add OPENAI_API_KEY
-vercel --prod
-```
-
-> **Note:** Vercel's serverless filesystem is ephemeral, so `route_log.jsonl` logs are written to `console.log` instead of disk. All other features work identically.
+> **Note:** Render's free tier spins down after 15 minutes of inactivity. The first request after idle takes ~30 seconds to wake up — this is normal behaviour.
 
 ---
 
 ## 🧪 Testing
 
-Run against a live local server:
-
 ```bash
-# Terminal 1 — start server
+# Terminal 1 — start the server
 npm start
 
-# Terminal 2 — run tests
+# Terminal 2 — run the test suite (17 test cases, 2s gap between each)
 npm test
 
 # Run against a remote deployment
-BASE_URL=https://your-app.vercel.app npm test
+BASE_URL=https://your-app.onrender.com npm test
 ```
-
-The test suite covers all 15 required test messages plus manual override and edge cases.
 
 ---
 
@@ -140,9 +135,10 @@ The test suite covers all 15 required test messages plus manual override and edg
 Classify and respond to a user message.
 
 **Request body:**
+
 ```json
 {
-  "message": "how do i sort a list in python?",
+  "message": "how do i sort a list in Python?",
   "history": []
 }
 ```
@@ -150,16 +146,21 @@ Classify and respond to a user message.
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `message` | string | ✅ | User's raw input |
-| `history` | array | ❌ | `[{role, content}]` for multi-turn |
+| `history` | array | ❌ | `[{role, content}]` for multi-turn conversation |
 
 **Response:**
+
 ```json
 {
-  "response":        "```python\n...",
-  "intent":          "code",
-  "confidence":      0.97,
+  "response": "...",
+  "intent": "code",
+  "confidence": 0.97,
   "thresholdApplied": false,
-  "manualOverride":  false
+  "manualOverride": false,
+  "models": {
+    "classifier": "Groq — Llama 3.1 8B Instant",
+    "responder": "Groq — Llama 3.3 70B Versatile"
+  }
 }
 ```
 
@@ -167,19 +168,19 @@ Classify and respond to a user message.
 
 ### `GET /api/logs`
 
-Returns the most recent 100 log entries (newest first).
+Returns the most recent 100 log entries, newest first.
 
 ```json
 {
   "logs": [
     {
-      "timestamp":       "2026-03-09T14:01:05.123Z",
-      "message":         "how do i sort a list in python?",
-      "intent":          "code",
-      "confidence":      0.97,
+      "timestamp": "2026-03-12T10:01:05.123Z",
+      "message": "how do i sort a list in Python?",
+      "intent": "code",
+      "confidence": 0.97,
       "threshold_applied": false,
       "manual_override": false,
-      "response":        "..."
+      "response": "..."
     }
   ]
 }
@@ -189,12 +190,12 @@ Returns the most recent 100 log entries (newest first).
 
 ## 🎛️ Manual Override
 
-Prefix your message with an intent tag to bypass the classifier entirely:
+Prefix your message with an intent tag to skip the classifier entirely:
 
 ```
-@code    Fix this bug: for i in range(10) print(i)
-@data    What does a bimodal distribution tell me?
-@writing My opening paragraph feels weak.
+@code    Fix this Python bug
+@data    Explain a bimodal distribution
+@writing Improve this paragraph's clarity
 @career  Should I take this promotion?
 ```
 
@@ -205,22 +206,22 @@ Prefix your message with an intent tag to bypass the classifier entirely:
 ```
 prompt-router/
 ├── api/
-│   ├── chat.js          # POST /api/chat  (Vercel serverless)
-│   └── logs.js          # GET  /api/logs  (Vercel serverless)
+│   ├── chat.js          ← POST /api/chat
+│   └── logs.js          ← GET  /api/logs
 ├── src/
-│   ├── prompts.js        # Expert system prompts + classifier prompt
-│   ├── classifier.js     # classify_intent() function
-│   ├── router.js         # route_and_respond() function
-│   └── logger.js         # logRoute() / readLogs()
+│   ├── prompts.js        ← Expert system prompts + classifier prompt
+│   ├── classifier.js     ← classifyIntent() — Groq 8B + keyword fallback
+│   ├── router.js         ← routeAndRespond() — Groq 70B
+│   ├── logger.js         ← logRoute() / readLogs()
+│   └── withRetry.js      ← Exponential backoff for rate limits
 ├── public/
-│   └── index.html        # Chat UI
+│   └── index.html        ← Chat UI
 ├── tests/
-│   └── run_tests.js      # 17 automated test cases
-├── server.js             # Express server (Docker / local)
-├── vercel.json           # Vercel routing config
+│   └── run_tests.js      ← 17 automated test cases
+├── server.js             ← Express server
 ├── Dockerfile
 ├── docker-compose.yml
-├── route_log.jsonl       # Append-only JSON Lines log
+├── route_log.jsonl       ← Append-only request log
 ├── .env.example
 └── README.md
 ```
@@ -231,37 +232,30 @@ prompt-router/
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `OPENAI_API_KEY` | ✅ | — | Your OpenAI secret key |
-| `PORT` | ❌ | `3000` | HTTP port (Docker / local only) |
-| `CONFIDENCE_THRESHOLD` | ❌ | `0.7` | Minimum classifier confidence |
+| `GROQ_API_KEY` | ✅ | — | Your Groq API key — get one free at [console.groq.com](https://console.groq.com/keys) |
+| `PORT` | ❌ | `3000` | HTTP port (local / Docker only) |
+| `CONFIDENCE_THRESHOLD` | ❌ | `0.4` | Minimum classifier confidence before keyword fallback kicks in |
 
 ---
 
 ## 🔒 Security Notes
 
-- API keys are read from environment variables only — never from client-side code
-- The OpenAI client is initialised server-side and never exposed to the browser
-- The Docker image runs as a non-root user (`appuser`)
-- `.env` is listed in `.gitignore` — never commit secrets
+- API keys are read from environment variables only — never exposed to the browser
+- Docker image runs as a non-root user (`appuser`)
+- `.env` is in `.gitignore` — never commit secrets
 
 ---
 
 ## 📝 Design Decisions
 
-**Why gpt-4o-mini for classification?**  
-It is fast (< 500 ms) and cheap. The classifier prompt is intentionally terse and asks for JSON-only output with `temperature=0`, making it deterministic and easy to parse.
+**Why Llama 3.1 8B Instant for classification?**
+It is fast (< 500ms), cheap, and with `temperature=0` and `response_format: json_object` it returns deterministic, well-structured JSON every time.
 
-**Why gpt-4o for generation?**  
-The generation step requires nuanced reasoning, especially for the writing coach and career advisor personas. The quality difference justifies the cost.
+**Why Llama 3.3 70B Versatile for responses?**
+The expert personas (especially Writing Coach and Career Advisor) require nuanced reasoning. The quality difference over the 8B model is significant for longer, context-sensitive replies.
 
-**Why a confidence threshold?**  
-A single-label classifier can be confidently wrong. If the model returns `code` with 60% confidence, it is effectively saying "maybe". The threshold (default 0.7) catches these cases and asks the user to clarify rather than silently routing to the wrong expert.
+**Why a keyword fallback?**
+The LLM classifier can be rate-limited or return low-confidence results for informal or typo-heavy messages. The keyword map catches these cases and routes them correctly without asking the user to clarify unnecessarily.
 
-**Why JSON Lines for logging?**  
-`.jsonl` is append-only, structured, and trivially queryable with `jq` or any log aggregator. It scales well and requires no database.
-
----
-
-## 📄 Licence
-
-MIT
+**Why `.jsonl` for logging?**
+Append-only, one JSON object per line, trivially queryable with `jq`. Requires no database and works seamlessly in both local and Docker environments.
