@@ -1,12 +1,9 @@
-// Classifier — uses Groq (llama-3.1-8b-instant)
-// Tiny 8B model: fast, cheap, great at structured JSON output
-// Free tier: 30 req/min, 14,400 req/day
+
 const { CLASSIFIER_PROMPT, CONFIDENCE_THRESHOLD } = require("./prompts");
 const { withRetry } = require("./withRetry");
 
 const VALID_INTENTS = new Set(["code", "data", "writing", "career", "unclear"]);
 
-// Keyword fallback — used when LLM returns bad JSON
 const KEYWORD_MAP = [
   { intent: "code",    words: ["python","javascript","js","code","bug","function","error","script","sql","query","debug","class","array","loop","api","html","css","git","algorithm","syntax","import","variable","string","int","null","undefined","fix","TypeError","exception","compile","run","npm","pip"] },
   { intent: "data",    words: ["average","mean","median","data","dataset","number","numbers","statistics","chart","graph","correlation","distribution","percentage","sum","count","spreadsheet","csv","excel","pivot","analyse","analyze","trend","outlier","variance"] },
@@ -40,7 +37,7 @@ async function callGroqClassifier(apiKey, message) {
       model: "llama-3.1-8b-instant",
       max_tokens: 60,
       temperature: 0,
-      response_format: { type: "json_object" }, // force JSON output
+      response_format: { type: "json_object" }, 
       messages: [
         { role: "system", content: CLASSIFIER_PROMPT },
         { role: "user",   content: message },
@@ -58,15 +55,9 @@ async function callGroqClassifier(apiKey, message) {
   return data.choices[0]?.message?.content?.trim() ?? "";
 }
 
-/**
- * Classify user intent via Groq (llama-3.1-8b-instant).
- * Falls back to keyword matching if the LLM fails or returns bad JSON.
- * @param {string} message
- * @param {string} apiKey  - GROQ_API_KEY
- */
+
 
 async function classifyIntent(message, apiKey) {
-  // Manual override — no API call needed
   const overrideMatch = message.match(/^@(code|data|writing|career)\s+/i);
   if (overrideMatch) {
     return { intent: overrideMatch[1].toLowerCase(), confidence: 1.0, override: true };
@@ -90,16 +81,13 @@ async function classifyIntent(message, apiKey) {
 
     if (!intent) return keywordFallback(message);
 
-    // Apply threshold — but only fall back to keywords, not straight to unclear
     if (confidence < CONFIDENCE_THRESHOLD && intent !== "unclear") {
       const kwResult = keywordFallback(message);
-      // Use keyword result if it found something, otherwise trust the LLM anyway
       return kwResult.intent !== "unclear" ? kwResult : { intent, confidence };
     }
 
     return { intent, confidence };
   } catch {
-    // API error — fall back to keyword matching so the user still gets a response
     return keywordFallback(message);
   }
 }

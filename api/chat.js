@@ -1,14 +1,3 @@
-// api/chat.js
-
-// │  Step 1 → Groq  (llama-3.1-8b-instant)                  │
-// │           Fast 8B model classifies intent in <1s         │
-// │           returns: code / data / writing / career /      │
-// │           unclear                                        │
-// │                                                          │
-// │  Step 2 → Groq  (llama-3.3-70b-versatile)               │
-// │           Powerful 70B model generates the full          │
-// │           expert response via the matched persona        
-
 const { classifyIntent } = require("../src/classifier");
 const { routeAndRespond } = require("../src/router");
 const { logRoute }        = require("../src/logger");

@@ -3,19 +3,7 @@ const path = require("path");
 
 const LOG_PATH = path.resolve(__dirname, "..", "route_log.jsonl");
 
-/**
- * Append a structured log entry to route_log.jsonl.
- * Falls back to console.log when the filesystem is read-only (e.g., Vercel).
- *
- * @param {{
- *   message: string,
- *   intent: string,
- *   confidence: number,
- *   response: string,
- *   thresholdApplied?: boolean,
- *   override?: boolean
- * }} entry
- */
+
 function logRoute(entry) {
   const record = {
     timestamp: new Date().toISOString(),
@@ -32,15 +20,11 @@ function logRoute(entry) {
   try {
     fs.appendFileSync(LOG_PATH, line, "utf8");
   } catch {
-    // Vercel / read-only filesystem — degrade gracefully
     console.log("[route_log]", line.trim());
   }
 }
 
-/**
- * Read all log entries (returns empty array if file doesn't exist).
- * @returns {object[]}
- */
+
 
 
 function readLogs() {

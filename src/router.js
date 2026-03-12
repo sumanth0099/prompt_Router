@@ -35,13 +35,7 @@ async function callGroq(apiKey, systemPrompt, messages) {
   return data.choices[0]?.message?.content?.trim() ?? "I was unable to generate a response.";
 }
 
-/**
- * Route to the correct expert persona and respond via Groq.
- * @param {string} message
- * @param {{intent: string, confidence: number}} intentResult
- * @param {string} apiKey  - GROQ_API_KEY
- * @param {Array<{role: string, content: string}>} conversationHistory
- */
+
 async function routeAndRespond(message, intentResult, apiKey, conversationHistory = []) {
   const { intent } = intentResult;
   const cleanMessage = message.replace(/^@(code|data|writing|career)\s+/i, "").trim();

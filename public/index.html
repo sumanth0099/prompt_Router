@@ -35,7 +35,6 @@
       margin: 0 auto;
     }
 
-    /* ── Header ─────────────────────────────────────────── */
     header {
       display: flex;
       align-items: center;
@@ -79,7 +78,6 @@
 
     .stat-count { font-family: 'DM Mono', monospace; font-size: 11px; }
 
-    /* ── Messages ───────────────────────────────────────── */
     .messages {
       flex: 1;
       overflow-y: auto;
@@ -92,7 +90,6 @@
     .messages::-webkit-scrollbar { width: 4px; }
     .messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
-    /* Empty */
     .empty {
       flex: 1;
       display: flex;
@@ -128,7 +125,6 @@
 
     .chip:hover { border-color: var(--accent); background: var(--accent); color: #fff; }
 
-    /* Messages */
     .msg { display: flex; flex-direction: column; gap: 6px; }
     .msg.user  { align-items: flex-end; }
     .msg.assistant { align-items: flex-start; }
@@ -153,7 +149,6 @@
       border-bottom-left-radius: 4px;
     }
 
-    /* Code inside bubbles */
     .bubble pre {
       background: var(--bg);
       border: 1px solid var(--border);
@@ -174,7 +169,6 @@
       padding: 1px 5px;
     }
 
-    /* Intent pill */
     .pill {
       display: inline-flex;
       align-items: center;
@@ -205,7 +199,6 @@
       font-family: 'DM Mono', monospace;
     }
 
-    /* Typing */
     .typing {
       display: flex;
       gap: 4px;
@@ -232,7 +225,6 @@
       30%           { transform: translateY(-5px); opacity: 1; }
     }
 
-    /* ── Input ──────────────────────────────────────────── */
     .input-area {
       padding: 16px 24px 20px;
       background: var(--surface);
@@ -446,7 +438,6 @@
     $('messages').appendChild(d);
     scrollEnd();
 
-    // Update header stat
     counts[intent] = (counts[intent] || 0) + 1;
     const el = $(`s-${intent}`);
     if (el) el.textContent = counts[intent];
@@ -477,7 +468,7 @@
       removeTyping();
 
       if (!res.ok) {
-        addAssistant(`⚠️ ${data.error ?? 'Something went wrong.'}`, 'unclear', 0);
+        addAssistant(` ${data.error ?? 'Something went wrong.'}`, 'unclear', 0);
         return;
       }
 
@@ -489,7 +480,7 @@
 
     } catch {
       removeTyping();
-      addAssistant('⚠️ Network error — is the server running?', 'unclear', 0);
+      addAssistant(' Network error — is the server running?', 'unclear', 0);
     } finally {
       busy = false;
       $('send-btn').disabled = false;

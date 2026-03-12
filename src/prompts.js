@@ -1,8 +1,3 @@
-// ============================================================
-// Expert System Prompts — keyed by intent label
-// Each prompt establishes a distinct persona with clear role,
-// tone, constraints, and desired output format.
-// ============================================================
 
 const SYSTEM_PROMPTS = {
   code: `You are a senior software engineer who delivers production-quality code. \
@@ -36,7 +31,6 @@ Every recommendation must be tied directly back to what the user told you.`,
   // "unclear" is handled programmatically
 };
 
-// Classifier prompt instructs the LLM to return only JSON
 const CLASSIFIER_PROMPT = `You are an intent classifier. Classify the user message into exactly one of these five categories:
 
 - code    → anything about programming, debugging, scripts, SQL, algorithms, tools, tech concepts
@@ -55,8 +49,6 @@ IMPORTANT RULES:
 Respond with ONLY a JSON object, no markdown, no explanation:
 {"intent":"code","confidence":0.95}`;
 
-// Confidence threshold — kept low so borderline messages still get routed
-// Only truly ambiguous messages (greeting, gibberish) should fall through to unclear
 const CONFIDENCE_THRESHOLD = 0.4;
 
 module.exports = { SYSTEM_PROMPTS, CLASSIFIER_PROMPT, CONFIDENCE_THRESHOLD };
